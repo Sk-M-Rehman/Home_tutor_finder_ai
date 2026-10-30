@@ -1,0 +1,9 @@
+backend/.env
+backend/.env.*
+backend/target/
+backend/*.log
+backend/hs_err_pid*
+backend/replay_pid*
+frontend/node_modules/
+frontend/.next/
+.git/
