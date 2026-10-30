@@ -18,7 +18,7 @@ spring:
           timeout: 5000
           writetimeout: 5000
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/home_tutor_finder?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/home_tutor_finder}
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD}
     hikari:
