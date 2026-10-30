@@ -16,13 +16,19 @@ public class RegistrationEmailService {
     private final JavaMailSender mailSender;
     private final String from;
     private final boolean enabled;
+    private final BrevoEmailSender brevo;
+    private final String provider;
 
     public RegistrationEmailService(ObjectProvider<JavaMailSender> mailSender,
                                     @Value("${app.mail.from:}") String from,
-                                    @Value("${app.mail.enabled:false}") boolean enabled) {
+                                    @Value("${app.mail.enabled:false}") boolean enabled,
+                                    BrevoEmailSender brevo,
+                                    @Value("${app.mail.provider:smtp}") String provider) {
         this.mailSender = mailSender.getIfAvailable();
         this.from = from;
         this.enabled = enabled;
+        this.brevo = brevo;
+        this.provider = provider;
     }
 
     public record RegisteredUser(String email, String name, String role) {}
@@ -40,7 +46,7 @@ public class RegistrationEmailService {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void sendWelcomeEmail(RegisteredUser user) {
-        if (!enabled || mailSender == null) return;
+        if (!enabled) return;
         send(user.email(), "Welcome to Home Tutor Finder!", "Hello " + user.name() + ",\n\n" +
                 "Your " + user.role().toLowerCase() + " account has been registered successfully.\n" +
                 "You can now sign in and start using Home Tutor Finder.\n\n" +
@@ -49,7 +55,7 @@ public class RegistrationEmailService {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void sendSlotBookedEmails(SlotBooked booking) {
-        if (!enabled || mailSender == null) return;
+        if (!enabled) return;
         String details = "Subject: " + booking.subject() + "\n" +
                 "Date: " + booking.date() + "\n" +
                 "Time: " + booking.time() + "\n\n";
@@ -63,7 +69,7 @@ public class RegistrationEmailService {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void sendPaymentCompletedEmails(PaymentCompleted payment) {
-        if (!enabled || mailSender == null) return;
+        if (!enabled) return;
         String details = "Subject: " + payment.subject() + "\n" +
                 "Date: " + payment.date() + "\n" +
                 "Time: " + payment.time() + "\n" +
@@ -79,6 +85,14 @@ public class RegistrationEmailService {
 
     private void send(String recipient, String subject, String text) {
         try {
+            if ("brevo".equalsIgnoreCase(provider)) {
+                brevo.send(from, recipient, subject, text);
+                log.info("Transactional email accepted by Brevo");
+                return;
+            }
+            if (!"smtp".equalsIgnoreCase(provider) || mailSender == null) {
+                throw new IllegalStateException("Email provider is not configured");
+            }
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(from);
             message.setTo(recipient);
@@ -87,7 +101,8 @@ public class RegistrationEmailService {
             mailSender.send(message);
         } catch (Exception ex) {
             // Email failure must not roll back an already committed transaction.
-            log.error("Could not send email to {}", recipient, ex);
+            // Do not log provider response bodies or credentials.
+            log.error("Email delivery failed using {} ({})", provider, ex.getClass().getSimpleName());
         }
     }
 }

@@ -39,6 +39,8 @@ server:
 app:
   mail:
     enabled: ${MAIL_ENABLED:false}
+    provider: ${MAIL_PROVIDER:smtp}
+    brevo-api-key: ${BREVO_API_KEY:}
     from: ${MAIL_FROM:${MAIL_USERNAME:}}
   jwt:
     secret: ${JWT_SECRET}
